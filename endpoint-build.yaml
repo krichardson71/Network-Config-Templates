@@ -1,0 +1,251 @@
+---
+-  name: LTM Endpoint Build
+   hosts: all
+   connection: local
+   gather_facts: False
+
+   vars_prompt:
+      - { name: "ansible_user", prompt: "username", private: False }
+      - { name: "ansible_password", prompt: "password", private: True }
+
+   vars:
+      provider:
+        { password: "{{ ansible_password }}",  server: "{{ inventory_hostname }}", user: "{{ ansible_user }}",
+         validate_certs: False, server_port: 443 }
+
+      webster:
+        pools:
+          - pool: pool-kafka-schemareg-8081-pyx-pf-wdc
+            lb_method: round-robin
+            monitors:
+              - tcp
+              - gateway_icmp
+
+        pool_members:
+          - node: test_node1
+            address: '1.1.1.1'
+            pool: pool-kafka-schemareg-8081-pyx-pf-wdc
+            port: 8081
+
+          - node: test_node2
+            address: '2.2.2.2'
+            pool: pool-kafka-schemareg-8081-pyx-pf-wdc
+            port: 8081
+
+        virtuals:
+          - name: vs-kafka-schemareg-8081-pyx-pf-wdc
+            vip: '10.3.15.25'
+            port: 8081
+            protocol: tcp
+            type: standard
+            pool: pool-kafka-schemareg-8081-pyx-pf-wdc
+            rules: ''
+            snat: automap
+            persist: None
+            profiles:
+              - { name: tcp-wan-optimized, context: client-side }
+              - { name: tcp-lan-optimized, context: server-side }
+
+      henrietta:
+        pools:
+          - pool: pool-kafka-schemareg-8081-pyx-pf-wdc
+            lb_method: round-robin
+            monitors:
+              - tcp
+              - gateway_icmp
+
+          pool_members:
+            - node: test_node1
+              address: '1.1.1.1'
+              pool: pool-kafka-schemareg-8081-pyx-pf-wdc
+              port: 8081
+
+            - node: test_node2
+              address: '2.2.2.2'
+              pool: pool-kafka-schemareg-8081-pyx-pf-wdc
+              port: 8081
+
+          virtuals:
+            - name: vs-kafka-schemareg-8081-pyx-pf-wdc
+              vip: '10.3.15.25'
+              port: 8081
+              protocol: tcp
+              type: standard
+              pool: pool-kafka-schemareg-8081-pyx-pf-wdc
+              rules: ''
+              snat: automap
+              persist: None
+              profiles:
+                - { name: tcp-wan-optimized, context: client-side }
+                - { name: tcp-lan-optimized, context: server-side }
+
+   tasks:
+     # Begin Change
+      - name: Create Webster perf LTM Pool(s)
+        bigip_pool:
+          provider: "{{ provider }}"
+          state: present
+          name: "{{ item.pool }}"
+          lb_method: "{{ item.lb_method }}"
+          monitors: "{{ item.monitors }}"
+        loop: "{{ webster.pools }}"
+        when: ('US6645NY-NELAB-LTM1' in inventory_hostname)
+        delegate_to: localhost
+        tags: [ change ]
+
+      - name: Add Webster perf LTM Pool Member(s)
+        bigip_pool_member:
+          provider: "{{ provider }}"
+          state: present
+          name: "{{ item.node }}"
+          address: "{{ item.address }}"
+          pool: "{{ item.pool }}"
+          port: "{{ item.port }}"
+        loop: "{{ webster.pool_members }}"
+        when: ('US6645NY-NELAB-LTM1' in inventory_hostname)
+        delegate_to: localhost
+        tags: [ change ]
+
+      - name: Add Webster perf LTM Virtual Server(s)
+        bigip_virtual_server:
+          provider: "{{ provider }}"
+          state: present
+          name: "{{ item.name }}"
+          destination: "{{ item.vip }}"
+          pool: "{{ item.pool }}"
+          port: "{{ item.port }}"
+          type: "{{ item.type }}"
+          irules: "{{ item.rules }}"
+          profiles: "{{ item.profiles }}"
+          snat: "{{ item.snat }}"
+        loop: "{{ webster.virtuals }}"
+        when: ('US6645NY-NELAB-LTM1' in inventory_hostname)
+        delegate_to: localhost
+        tags: [ change ]
+
+      - name: Create Henrietta perf LTM Pool(s)
+        bigip_pool:
+          provider: "{{ provider }}"
+          state: present
+          name: "{{ item.name }}"
+          lb_method: "{{ item.lb_method }}"
+          monitors: "{{ item.monitors }}"
+        loop: "{{ henrietta.pools }}"
+        when: ('US6645NY-NELAB-LTM1' in inventory_hostname)
+        delegate_to: localhost
+        tags: [ change ]
+
+      - name: Add Henrietta perf LTM Pool Member(s)
+        bigip_pool_member:
+          provider: "{{ provider }}"
+          state: present
+          name: "{{ item.node }}"
+          address: "{{ item.address }}"
+          pool: "{{ item.pool }}"
+          port: "{{ item.port }}"
+        loop: "{{ henrietta.pool_members }}"
+        when: ('US6645NY-NELAB-LTM1' in inventory_hostname)
+        delegate_to: localhost
+        tags: [ change ]
+
+      - name: Add Henrietta perf LTM Virtual Server(s)
+        bigip_virtual_server:
+          provider: "{{ provider }}"
+          state: present
+          name: "{{ item.name }}"
+          destination: "{{ item.vip }}"
+          pool: "{{ item.pool }}"
+          port: "{{ item.port }}"
+          type: "{{ item.type }}"
+          irules: "{{ item.rules }}"
+          profiles: "{{ item.profiles }}"
+          snat: "{{ item.snat }}"
+        loop: "{{ henrietta.virtuals }}"
+        when: ('US6645NY-NELAB-LTM1' in inventory_hostname)
+        delegate_to: localhost
+        tags: [ change ]
+
+      # Rollback
+      - name: Delete Webster perf LTM Virtual Server(s)
+        bigip_virtual_server:
+          provider: "{{ provider }}"
+          state: absent
+          name: "{{ item.name }}"
+          destination: "{{ item.vip }}"
+          pool: "{{ item.pool }}"
+          port: "{{ item.port }}"
+          type: "{{ item.type }}"
+          irules: "{{ item.rules }}"
+          profiles: "{{ item.profiles }}"
+          snat: "{{ item.snat }}"
+        loop: "{{ webster.virtuals }}"
+        when: ('US6645NY-NELAB-LTM1' in inventory_hostname)
+        delegate_to: localhost
+        tags: [ rollback ]
+
+      - name: Delete Webster perf LTM Pool Member(s)
+        bigip_pool_member:
+          provider: "{{ provider }}"
+          state: absent
+          name: "{{ item.node }}"
+          address: "{{ item.address }}"
+          pool: "{{ item.pool }}"
+          port: "{{ item.port }}"
+        loop: "{{ webster.pool_members }}"
+        when: ('US6645NY-NELAB-LTM1' in inventory_hostname)
+        delegate_to: localhost
+        tags: [ rollback ]
+
+      - name: Delete Webster perf LTM Pool(s)
+        bigip_pool:
+          provider: "{{ provider }}"
+          state: absent
+          nname: "{{ item.name }}"
+          lb_method: "{{ item.lb_method }}"
+          monitors: "{{ item.monitors }}"
+        loop: "{{ webster.pools }}"
+        when: ('US6645NY-NELAB-LTM1' in inventory_hostname)
+        delegate_to: localhost
+        tags: [ rollback ]
+
+      - name: Delete Henrietta perf LTM Virtual Server(s)
+        bigip_virtual_server:
+          provider: "{{ provider }}"
+          state: absent
+          name: "{{ item.name }}"
+          destination: "{{ item.vip }}"
+          pool: "{{ item.pool }}"
+          port: "{{ item.port }}"
+          type: "{{ item.type }}"
+          irules: "{{ item.rules }}"
+          profiles: "{{ item.profiles }}"
+          snat: "{{ item.snat }}"
+        loop: "{{ webster.virtuals }}"
+        when: ('US6645NY-NELAB-LTM1' in inventory_hostname)
+        delegate_to: localhost
+        tags: [ rollback ]
+
+      - name: Delete Henrietta perf LTM Pool Member(s)
+        bigip_pool_member:
+          provider: "{{ provider }}"
+          state: absent
+          name: "{{ item.node }}"
+          address: "{{ item.address }}"
+          pool: "{{ item.name }}"
+          port: "{{ item.port }}"
+        loop: "{{ webster.pool_members }}"
+        when: ('US6645NY-NELAB-LTM1' in inventory_hostname)
+        delegate_to: localhost
+        tags: [ rollback ]
+
+      - name: Delete Henrietta perf LTM Pool(s)
+        bigip_pool:
+          provider: "{{ provider }}"
+          state: absent
+          nname: "{{ item.name }}"
+          lb_method: "{{ item.lb_method }}"
+          monitors: "{{ item.monitors }}"
+        loop: "{{ webster.pools}}"
+        when: ('US6645NY-NELAB-LTM1' in inventory_hostname)
+        delegate_to: localhost
+        tags: [ rollback ]
