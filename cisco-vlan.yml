@@ -1,0 +1,156 @@
+---
+- connection: local
+  gather_facts: False
+  hosts: all
+  vars_prompt:
+    - name: "ansible_user"
+      prompt: "Username"
+      private: no
+    - name: "ansible_password"
+      prompt: "Password"
+      private: yes
+  vars:
+    cli:
+      host: "{{ ansible_host }}"
+      username: "{{ ansible_user }}"
+      password: "{{ ansible_password }}"
+      timeout: 25
+
+    webster_vlans:
+      - vlan_id: "831"
+        name: "VL831_BENETRAC_Z0_10.65.5.224/27"
+    henrietta_vlans:
+      - vlan_id: "831"
+        name: "VL831_BENETRAC_Z0_10.66.5.224/27"
+    omaha_vlans:
+      - vlan_id: "885"
+        name: "VL885_BENETRAC_Z0_10.68.7.0/27"
+
+  tasks:
+    - name: "Webster Zone 0 Vlan Creation"
+      ios_vlan:
+        provider: "{{ cli }}"
+        vlan_id: "{{ item.vlan_id  }}"
+        name: "{{ item.name  }}"
+        state: "present"
+      with_items: "{{ webster_vlans }}"
+      when: "'US6645NY' in inventory_hostname|upper"
+      tags: create
+ 
+    - name: "Webster trunk vlans to Firewalls"
+      ios_config:
+        provider: "{{ cli }}"
+        lines:
+          - "switchport trunk allowed vlan add {{ item.vlan_id }}"
+        parents: "interface Ethernet5/8"
+      with_items: "{{ webster_vlans }}"
+      when: "'US6645NY-CORE-VDC' in inventory_hostname|upper"
+      tags: create
+
+    - name: "Henrietta Zone 0 Vlan Creation"
+      ios_vlan:
+        provider: "{{ cli }}"
+        vlan_id: "{{ item.vlan_id  }}"
+        name: "{{ item.name  }}"
+        state: "present"
+      with_items: "{{ henrietta_vlans }}"
+      when: "'US6647NY' in inventory_hostname|upper"
+      tags: create
+
+    - name: "Henrietta trunk vlans to Firewalls"
+      ios_config:
+        provider: "{{ cli }}"
+        lines:
+          - "switchport trunk allowed vlan add {{ item.vlan_id }}"
+        parents: "interface Ethernet5/25"
+      with_items: "{{ henrietta_vlans }}"
+      when: "'US6647NY-CORE-VDC' in inventory_hostname|upper"
+      tags: create
+
+    - name: "Omaha Zone 0 Vlan Creation"
+      ios_vlan:
+        provider: "{{ cli }}"
+        vlan_id: "{{ item.vlan_id  }}"
+        name: "{{ item.name  }}"
+        state: "present"
+      with_items: "{{ omaha_vlans }}"
+      when: "'US9485NE' in inventory_hostname|upper"
+      tags: create
+
+    - name: "Omaha trunk vlans to Firewalls"
+      ios_config:
+        provider: "{{ cli }}"
+        lines:
+          - "switchport trunk allowed vlan add {{ item.vlan_id }}"
+        parents: "interface Ethernet5/25"
+      with_items: "{{ omaha_vlans }}"
+      when: "'US9485NE-CORE-VDC' in inventory_hostname|upper"
+      tags: create
+      
+    - name: "Webster Zone 0 Vlan Deletion"
+      ios_vlan:
+        provider: "{{ cli }}"
+        vlan_id: "{{ item.vlan_id  }}"
+        name: "{{ item.name  }}"
+        state: "absent"
+      with_items: "{{ webster_vlans }}"
+      when: "'US6645NY' in inventory_hostname|upper"
+      tags: delete
+
+    - name: "Webster remove vlans to Firewalls"
+      ios_config:
+        provider: "{{ cli }}"
+        lines:
+          - "switchport trunk allowed vlan remove {{ item.vlan_id }}"
+        parents: "interface Ethernet5/8"
+      with_items: "{{ webster_vlans }}"
+      when: "'US6645NY-CORE-VDC' in inventory_hostname|upper"
+      tags: delete
+
+    - name: "Henrietta Zone 0 Vlan Deletion"
+      ios_vlan:
+        provider: "{{ cli }}"
+        vlan_id: "{{ item.vlan_id  }}"
+        name: "{{ item.name  }}"
+        state: "absent"
+      with_items: "{{ henrietta_vlans }}"
+      when: "'US6647NY' in inventory_hostname|upper"
+      tags: delete
+
+    - name: "Henrietta remove vlans to Firewalls"
+      ios_config:
+        provider: "{{ cli }}"
+        lines:
+          - "switchport trunk allowed vlan remove {{ item.vlan_id }}"
+        parents: "interface Ethernet5/25"
+      with_items: "{{ henrietta_vlans }}"
+      when: "'US6647NY-CORE-VDC' in inventory_hostname|upper"
+      tags: delete
+
+    - name: "Omaha Zone 0 Vlan Deletion"                                                                                                                                                 
+      ios_vlan:                                                                                                                                                                          
+        provider: "{{ cli }}"                                                                                                                                                            
+        vlan_id: "{{ item.vlan_id  }}"                                                                                                                                                   
+        name: "{{ item.name  }}"                                                                                                                                                         
+        state: "absent"                                                                                                                                                                 
+      with_items: "{{ omaha_vlans }}"                                                                                                                                                    
+      when: "'US9485NE' in inventory_hostname|upper"
+      tags: delete                                                                                                                                  
+    
+    - name: "Omaha trunk vlans to Firewalls"                                                                                                                                             
+      ios_config:                                                                                                                                                                        
+        provider: "{{ cli }}"                                                                                                                                                            
+        lines:                                                                                                                                                                           
+          - "switchport trunk allowed vlan remove {{ item.vlan_id }}"                                                                                                                       
+        parents: "interface Ethernet5/25"                                                                                                                                                
+      with_items: "{{ omaha_vlans }}"                                                                                                                                                  
+      when: "'US9485NE-CORE-VDC' in inventory_hostname|upper"
+      tags: delete
+
+    - name: "Save Config"
+      ios_config:
+        provider: "{{ cli }}"
+        save_when: "modified"
+      tags:
+        - create
+        - delete
