@@ -35,9 +35,9 @@ def create_vlan():
                     break
                 else:
                     for interface in interfaces:
-                        vlan_cmd = net_connect.send_config_set([f'interface {interface}',
+                        int_cmd = net_connect.send_config_set([f'interface {interface}',
                                                                 f'switchport trunk allowed vlan add {vlan["id"]}'])
-                        if 'Invalid' in vlan_cmd:
+                        if 'Invalid' in int_cmd:
                             print(f'interface {interface} configuration is invalid for host {host}')
                             break
                         else:
