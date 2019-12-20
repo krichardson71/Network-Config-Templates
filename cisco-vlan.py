@@ -18,7 +18,7 @@ interfaces = ['ethernet1/3']
 def create_vlan():
     for host in hosts:
         args = {
-            'username': 'krrichar',
+            'username': 'some_user',
             'password': password,
             'device_type': 'cisco_ios',
             'session_log': host,
