@@ -28,9 +28,9 @@ def main():
 
     def change(vlan_id, name, interface):
         """
-        @param v_id: vlan id
-        @param name: vlan name
-        @param interface: trunk interface(s) to add vlan
+        @param vlan_id: vlan id -> str
+        @param name: vlan name -> str
+        @param interface: trunk interface(s) to add vlan -> list
         @return: None
 
         """
@@ -50,10 +50,10 @@ def main():
         net_connect.send_command('copy running-config startup-config')
         net_connect.disconnect()
 
-    def rollback(v_id, interface):
+    def rollback(vlan_id, interface):
         """
-        @param num: vlan id
-        @param interface: trunk interface(s) to add vlan
+        @param num: vlan id -> str
+        @param interface: trunk interface(s) to add vlan -> str
         @return: None
 
         """
