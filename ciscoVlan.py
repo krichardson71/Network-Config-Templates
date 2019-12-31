@@ -73,7 +73,6 @@ def main():
         net_connect.disconnect()
 
     for host in hosts:
-
         #  webster
         try:
             if ('6645ny' in host) and (change_type == 'change'):
@@ -82,7 +81,6 @@ def main():
                 rollback(num=wdc['num'], interface=wdc['interfaces'])
         except (EOFError, SSHException) as error:
             print(error, '\n\t## webster changes unsuccessful ##')
-
         #  henrietta
         try:
             if ('6647ny' in host) and (change_type == 'change'):
@@ -91,7 +89,6 @@ def main():
                 rollback(num=hdc['num'], interface=hdc['interfaces'])
         except (EOFError, SSHException) as error:
             print(error, '\n\t## henrietta changes unsuccessful ##')
-
         print('\n\t## changes complete for {} ##'.format(host))
 
 
