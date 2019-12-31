@@ -15,11 +15,11 @@ hosts = ['us6645ny-ppcore-vdc1',
          'us6647ny-ppcore-vdc1']
 
 wdc = {'vlan_id': '900',
-       'vlan_name': 'VL900_WDC_N2A_128.1.6.5/24',
+       'vlan_name': 'VL900_WDC_N2A_192.0.6.5/24',
        'interfaces': 'Ethernet1/3, Ethernet1/6, Ethernet1/10-13,\
                       Ethernet5/3, Ethernet5/6, Ethernet5/10-13'}
 hdc = {'vlan_id': '900',
-       'vlan_name': 'VL900_HDC_N2A_128.1.6.5/24',
+       'vlan_name': 'VL900_HDC_N2A_192.1.6.5/24',
        'interfaces': 'Ethernet1/3, Ethernet1/6-7, Ethernet1/10, Ethernet1/12, Ethernet1/15,\
                       Ethernet5/3, Ethernet5/6-7, Ethernet5/10, Ethernet5/12, Ethernet5/15'}
 
