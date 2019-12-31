@@ -1,72 +1,91 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 from netmiko import ConnectHandler
 from getpass import getpass
+from paramiko import SSHException
+import sys
 
-change = input('change or rollback: ')
 password = getpass()
+change_type = input('change or rollback: ').lower()
+args = {'username': 'krrichar', 'password': password,
+        'device_type': 'cisco_nxos'}
 
-hosts = ['router-tstbr-rt02']
+hosts = ['us6645ny-core-vdc1', 'us6645ny-core-vdc2',
+         'us6647ny-core-vdc1', 'us6647ny-core-vdc2',
+         'us9485ne-core-vdc1', 'us9485ne-core-vdc2']
 
-vlans = [{'name': 'Test VLAN 126', 'id': '126'},
-         {'name': 'Test VLAN 127', 'id': '127'}]
+wdc = {'vlan_id': '900', 
+       'vlan_name': 'VL900_WDC_PROD_128.1.6.5/24', 
+       'interfaces': 'interface Ethernet5/8'}
 
-interfaces = ['ethernet1/3']
+hdc = {'vlan_id': '900', 
+       'vlan_name': 'VL900_HDC_PROD_128.1.6.5/24',
+       'interfaces': 'interface Ethernet5/25'}
+
+odc = {'vlan_id': '900', 
+       'vlan_name': 'VL900_ODC_PROD_128.1.6.5/24',
+       'interfaces': 'interface Ethernet5/25'}
 
 
-def create_vlan():
-    for host in hosts:
-        args = {
-            'username': 'some_user',
-            'password': password,
-            'device_type': 'cisco_ios',
-            'session_log': host,
-        }
-        net_connect = ConnectHandler(host, **args)
+def main():
+
+    def change(num, name, interface):
+        net_connect = ConnectHandler(host, session_log=host, **args)
+        print(net_connect.find_prompt())
         net_connect.send_command('show run')
-        for vlan in vlans:
-            verify = net_connect.send_command(f'show vlan id {vlan["id"]}')
-            if 'not found in current VLAN database' in verify:
-                vlan_cmd = net_connect.send_config_set([f'vlan {vlan["id"]}',
-                                                        f'name {vlan["name"]}'])
-                if 'Invalid' in vlan_cmd:
-                    print(f'vlan {vlan["id"]} syntax incorrect for {host}')
-                    break
-                else:
-                    for interface in interfaces:
-                        int_cmd = net_connect.send_config_set([f'interface {interface}',
-                                                                f'switchport trunk allowed vlan add {vlan["id"]}'])
-                        if 'Invalid' in int_cmd:
-                            print(f'interface {interface} configuration is invalid for host {host}')
-                            break
-                        else:
-                            print(f'vlan creation successful for vlan {vlan["id"]} on device {host}')
-            else:
-                print(f'vlan creation failed for vlan {vlan["id"]} on device {host}...vlan may already exist')
-                break
-            verify = net_connect.send_command(f'show vlan id {vlan["id"]}')
-            print(verify)
+        precheck = net_connect.send_command('show vlan id {}'.format(num))
+        if 'active' in precheck:
+            print('\n\t## vlan already exists ##')
+            sys.exit()
+        net_connect.send_config_set(['vlan {}'.format(num),
+                                     'name {}'.format(name),
+                                     'interface {}'.format(interface),
+                                     'switchport trunk allowed vlan add {}'.format(num)])
+        postcheck = net_connect.send_command('show vlan id {}'.format(num))
+        print(postcheck)
+        net_connect.disconnect()
 
+    def rollback(num, interface):
+        net_connect = ConnectHandler(host, session_log=host, **args)
+        print(net_connect.find_prompt())
+        net_connect.send_command('show run')
+        precheck = net_connect.send_command('show vlan id {}'.format(num))
+        if 'not found' in precheck:
+            print('\n\t## vlan is not present ##')
+            sys.exit()
+        net_connect.send_config_set(['no vlan {}'.format(num),
+                                     'interface {}'.format(interface),
+                                     'switchport trunk allowed vlan remove {}'.format(num)])
+        postcheck = net_connect.send_command('show vlan id {}'.format(num))
+        print(postcheck)
+        net_connect.disconnect()
 
-def remove_vlan():
     for host in hosts:
-        args = {
-            'username': 'krrichar',
-            'password': password,
-            'device_type': 'cisco_ios',
-            'session_log': host,
-        }
-        net_connect = ConnectHandler(host, **args)
-        for vlan in vlans:
-            net_connect.send_config_set(f'no vlan {vlan["id"]}')
-            for interface in interfaces:
-                net_connect.send_config_set([f'interface {interface}',
-                                             f'switchport trunk allowed vlan remove {vlan["id"]}'])
+        try:  # webster
+            if ('6645ny' in host) and (change_type == 'change'):
+                change(num=wdc['num'], name=wdc['name'], interface=wdc['interfaces'])
+            elif ('6645ny' in host) and (change_type == 'rollback'):
+                rollback(num=wdc['num'], interface=wdc['interfaces'])
+        except (EOFError, SSHException) as error:
+            print(error, '\n\t## webster changes unsuccessful ##')
+        try:  # henrietta
+            if ('6647ny' in host) and (change_type == 'change'):
+                change(num=hdc['num'], name=hdc['name'], interface=hdc['interfaces'])
+            elif ('6647ny' in host) and (change_type == 'rollback'):
+                rollback(num=hdc['num'], interface=hdc['interfaces'])
+        except (EOFError, SSHException) as error:
+            print(error, '\n\t## henrietta changes unsuccessful ##')
+        try:  # omaha
+            if ('9485ne' in host) and (change_type == 'change'):
+                change(num=odc['num'], name=odc['name'], interface=odc['interfaces'])
+            elif ('9485ne' in host) and (change_type == 'rollback'):
+                rollback(num=odc['num'], interface=odc['interfaces'])
+        except (EOFError, SSHException) as error:
+            print(error, '\n\t## omaha changes unsuccessful ##')
+
+        print('\n\t## changes complete for {} ##'.format(host))
 
 
 if __name__ == '__main__':
-    if change == 'change':
-        create_vlan()
-    elif change == 'rollback':
-        remove_vlan()
+    main()
