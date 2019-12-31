@@ -14,11 +14,13 @@ args = {'username': 'krrichar', 'password': password,
 hosts = ['us6645ny-ppcore-vdc1',
          'us6647ny-ppcore-vdc1']
 
-wdc = {'vlan_id': '900',
+wdc = {'site': '6645',
+       'vlan_id': '900',
        'vlan_name': 'VL900_WDC_N2A_192.0.6.5/24',
        'interfaces': 'Ethernet1/3, Ethernet1/6, Ethernet1/10-13,\
                       Ethernet5/3, Ethernet5/6, Ethernet5/10-13'}
-hdc = {'vlan_id': '900',
+hdc = {'site': '6647',
+       'vlan_id': '900',
        'vlan_name': 'VL900_HDC_N2A_192.1.6.5/24',
        'interfaces': 'Ethernet1/3, Ethernet1/6-7, Ethernet1/10, Ethernet1/12, Ethernet1/15,\
                       Ethernet5/3, Ethernet5/6-7, Ethernet5/10, Ethernet5/12, Ethernet5/15'}
@@ -75,17 +77,17 @@ def main():
     for host in hosts:
         #  webster
         try:
-            if ('6645ny' in host) and (change_type == 'change'):
+            if (wdc['site'] in host) and (change_type == 'change'):
                 change(num=wdc['vlan_id'], name=wdc['vlan_name'], interface=wdc['interfaces'])
-            elif ('6645ny' in host) and (change_type == 'rollback'):
+            elif (wdc['site'] in host) and (change_type == 'rollback'):
                 rollback(num=wdc['vlan_id'], interface=wdc['interfaces'])
         except (EOFError, SSHException) as error:
             print(error, '\n\t## webster changes unsuccessful ##')
         #  henrietta
         try:
-            if ('6647ny' in host) and (change_type == 'change'):
+            if (hdc['site']' in host) and (change_type == 'change'):
                 change(num=wdc['vlan_id'], name=wdc['vlan_name'], interface=wdc['interfaces'])
-            elif ('6647ny' in host) and (change_type == 'rollback'):
+            elif (hdc['site'] in host) and (change_type == 'rollback'):
                 rollback(num=hdc['vlan_id'], interface=hdc['interfaces'])
         except (EOFError, SSHException) as error:
             print(error, '\n\t## henrietta changes unsuccessful ##')
